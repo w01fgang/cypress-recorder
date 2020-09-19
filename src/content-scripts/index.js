@@ -10,8 +10,8 @@ class EventRecorder {
 
   start () {
     chrome.storage.local.get(['options'], ({ options }) => {
-      const {dataAttribute} = options ? options.code : {}
-	  const startContext = this;
+      const { dataAttribute } = options ? options.code : {}
+      const startContext = this
       if (dataAttribute) {
         this.dataAttribute = dataAttribute
       }
@@ -23,27 +23,27 @@ class EventRecorder {
       }
 
       if (!window.document.pptRecorderAddedControlListeners && chrome.runtime && chrome.runtime.onMessage) {
-        const boundedGetCurrentUrl = this.getCurrentUrl.bind(this);
-        const boundedGetViewPortSize = this.getViewPortSize.bind(this);
-        chrome.runtime.onMessage.addListener(boundedGetCurrentUrl);
-        chrome.runtime.onMessage.addListener(boundedGetViewPortSize);
-        window.document.pptRecorderAddedControlListeners = true;
+        const boundedGetCurrentUrl = this.getCurrentUrl.bind(this)
+        const boundedGetViewPortSize = this.getViewPortSize.bind(this)
+        chrome.runtime.onMessage.addListener(boundedGetCurrentUrl)
+        chrome.runtime.onMessage.addListener(boundedGetViewPortSize)
+        window.document.pptRecorderAddedControlListeners = true
       }
 
-	  chrome.storage.local.get('firstRun', function(items){
-		  if(!items.hasOwnProperty('firstRun')){
-			  chrome.storage.local.set({'firstRun': 0});
-			  items.firstRun = 0;
-		  }
+      chrome.storage.local.get('firstRun', function (items) {
+        if (!items.hasOwnProperty('firstRun')) {
+          chrome.storage.local.set({ 'firstRun': 0 })
+          items.firstRun = 0
+        }
 
-		  if(items.hasOwnProperty('firstRun') && !items.firstRun){
-			  startContext.sendMessage({ control: 'get-viewport-size', coordinates: { width: window.innerWidth, height: window.innerHeight } });
-			  startContext.sendMessage({ control: 'get-current-url', href: window.location.href });
-			  chrome.storage.local.set({'firstRun': 1});
-		  }
-	  });
+        if (items.hasOwnProperty('firstRun') && !items.firstRun) {
+          startContext.sendMessage({ control: 'get-viewport-size', coordinates: { width: window.innerWidth, height: window.innerHeight } })
+          startContext.sendMessage({ control: 'get-current-url', href: window.location.href })
+          chrome.storage.local.set({ 'firstRun': 1 })
+        }
+      })
 
-      this.sendMessage({ control: 'event-recorder-started' });
+      this.sendMessage({ control: 'event-recorder-started' })
       console.debug('Cypress Recorder in-page EventRecorder started')
     })
   }
@@ -84,12 +84,28 @@ class EventRecorder {
     }
   }
 
+  getDataAttributeContainer (element) {
+    if (!element) return
+
+    if (element.attributes[this.dataAttribute]) {
+      return element
+    }
+
+    if (element.parentElement) {
+      return this.getDataAttributeContainer(element.parentElement)
+    }
+
+    return null
+  }
+
   recordEvent (e) {
     if (this.previousEvent && this.previousEvent.timeStamp === e.timeStamp) return
     this.previousEvent = e
 
-    const selector = e.target.hasAttribute && e.target.hasAttribute(this.dataAttribute)
-      ? formatDataSelector(e.target, this.dataAttribute)
+    const dataAttributeContainer = this.getDataAttributeContainer(e.target)
+
+    const selector = dataAttributeContainer
+      ? formatDataSelector(dataAttributeContainer, this.dataAttribute)
       : finder(e.target, { seedMinLength: 5, optimizedMinLength: 10 })
 
     const msg = {
@@ -101,7 +117,7 @@ class EventRecorder {
       keyCode: e.keyCode ? e.keyCode : null,
       href: e.target.href ? e.target.href : null,
       coordinates: getCoordinates(e),
-	  targetObject: e.target
+      targetObject: e.target
     }
     this.sendMessage(msg)
   }
